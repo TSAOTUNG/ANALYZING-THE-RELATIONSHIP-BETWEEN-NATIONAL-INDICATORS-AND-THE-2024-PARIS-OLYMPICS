@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2024 Paris Olympics Medal Count Rankings</title>
+    <!-- <link rel="stylesheet" href="312553024.css"> -->
+    <style>
+    /* svg {
+        width: 1000px;
+        height: 10000px;
+    } */
+
+    text {
+        font-family: Arial;
+        font-size: 10px;
+        fill: #333333;
+    }
+
+    .grid path {
+        stroke-width: 0;
+        stroke: #333333;
+    }
+
+    .grid .tick line {
+        stroke: #333333;
+        stroke-width: 0.3px;
+        stroke-opacity: 0.3;
+    }
+
+    text.chart-title {
+        font-family: Arial;
+        font-size: 20px;
+        font-weight: bold;
+        fill: #222222
+    }
+
+    text.chart-label {
+        font-size: 10px;
+        font-weight: 400;
+        fill: #999999;
+    }
+
+    .tooltip {
+        background-color: #ffffff;
+        font-family: Arial;
+        font-size: 20px;
+        padding: 4px;
+        color: #666666;
+        border: none;
+        box-shadow: 0px 0px 3px 0px #E6E6E6;
+        position: absolute;
+    }
+
+    .legend {
+        font-size: 15px;
+    }
+
+    /* 新增按鈕樣式 */
+    .jump-button {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        background-color: #4CAF50;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        border-radius: 5px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        transition: background-color 0.3s ease;
+    }
+
+    .jump-button:hover {
+        background-color: #45a049;
+    }
+    </style> 
+</head>
+
+<body style="text-align: center; font-family: Arial;">
+    <h1>2024 Paris Olympics Medal Count Rankings</h1>
+    <button class="jump-button" onclick="location.href='scatter_plot/scatter_plot.html'">點選進入分析頁面</button>
+
+    <div class="footer" style="font-size: small; color: black; font-family: Arial;">
+        <p>Student ID: 313581007、313554026</p>
+    </div>
+    <hr>
+    <!-- Sort by -->
+    <label for="sort-by">Sort by: </label>
+    <select name="sort-by" id="sort-by">
+        <option value="total" selected>total</option>
+        <option value="gold">gold</option>
+        <option value="silver">silver</option>
+        <option value="bronze">bronze</option>
+    </select>
+    <!-- Sort order -->
+    <label for="sort-order">Sort order: </label>
+    <select name="sort-order" id="sort-order">
+        <option value="descending" selected>descending</option>
+        <option value="ascending">ascending</option>
+    </select>
+    
+    <!-- Range filter -->
+    <label for="rank-range">Display rank range: </label>
+    <select name="rank-range" id="rank-range">
+        <option value="all">All</option>
+        <option value="1-10">1-10</option>
+        <option value="11-20">11-20</option>
+        <option value="21-30">21-30</option>
+        <option value="31-40">31-40</option>
+        <option value="41-50">41-50</option>
+        <option value="51-60">51-60</option>
+        <option value="61-70">61-70</option>
+        <option value="71-80">71-80</option>
+    </select>
+
+    <!-- 新增 Medal Type 選項 -->
+    <label for="medal-type">Medal type: </label>
+    <select name="medal-type" id="medal-type">
+        <option value="all" selected>All</option>
+        <option value="gold">Gold</option>
+        <option value="silver">Silver</option>
+        <option value="bronze">Bronze</option>
+    </select>
+
+    <button id="sort-button">Sort</button>
+    <!-- Create a div where the graph will take place -->
+    <div id="my_dataviz"></div>
+</body>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+    // set the dimensions and margins of the graph
+    const margin = { top: 100, right: 50, bottom: 100, left: 400 };
+    const width = 2000 - margin.left - margin.right;
+    const height = 30000 - margin.top - margin.bottom;
+
+    // append the svg object to the body of the page
+    const svg = d3.select("#my_dataviz")
+        .append("svg")
+        .attr("width", `${width + margin.left + margin.right}px`)
+        .attr("height", `${height + margin.top + margin.bottom}px`)
+        // .attr("viewBox", "0 0 450 5000")
+        .attr("preserveAspectRatio", "xMinYMin")
+        .append("g")
+        .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+    const data_path = "olympics.csv"
+    const keys = ["gold", "silver", "bronze"];
+    const color = d3.scaleOrdinal(["#f28e2c", "#aba7a4",  "#291201"]);
+
+    // parse the Data
+    d3.csv(data_path).then(function (data) {
+
+
+        new_data = []
+        for (let i = 0; i < data.length; i++) {
+                new_data.push({
+                "country": data[i]["country"],
+                "total": +data[i]["total"].split("–")[0],
+                "gold": +data[i]["gold"],
+                "silver": +data[i]["silver"],
+                "bronze": +data[i]["bronze"],
+            })
+        }
+        
+        function sort_data(data, sort_by, sort_order, rank_range) {
+            let filtered_data;
+
+            // 根據選擇的排名範圍進行篩選
+            if (rank_range === "all") {
+                filtered_data = data; // 顯示全部
+            } else {
+                let [min_rank, max_rank] = rank_range.split("-").map(Number);
+                filtered_data = data.filter((d, index) => (index + 1) >= min_rank && (index + 1) <= max_rank);
+            }
+
+            // 根據指定的排序標準對篩選後的數據進行排序
+            if (sort_order === "descending") {
+                filtered_data.sort((a, b) => b[sort_by] - a[sort_by]);
+            } else {
+                filtered_data.sort((a, b) => a[sort_by] - b[sort_by]);
+            }
+
+            return filtered_data;
+        }
+
+
+        
+        function render_stacked_bar_charts(data, medalType = "all") {
+            svg.selectAll('*').remove();
+
+            // 計算動態的條形高度
+            const chartHeight = 1500; // 設置圖表可視範圍高度
+            const barHeight = Math.max(chartHeight / data.length, 20); // 設置最小高度為 10
+            const filteredKeys = medalType === "all" ? keys : [medalType];
+            // stack the data
+            const stack = d3.stack()
+                .keys(filteredKeys)
+                .order(d3.stackOrderNone)
+                .offset(d3.stackOffsetNone);
+            const stackedData = stack(data);
+
+            // X scale and Axis
+            const formater = d3.format(".1s");
+            const xScale = d3.scaleLinear()
+                .domain([0, d3.max(data, d => d.total)+20])
+                .range([0, width]);
+
+            // Y scale and Axis
+            const yScale = d3.scaleBand()
+                .domain(data.map(d => d.country))
+                .range([0, data.length * barHeight])
+                .padding(0.3);
+
+            // set vertical grid line
+            // set vertical grid line
+            const GridLine = function () { 
+                return d3.axisBottom(xScale)
+                    .ticks(Math.max(Math.floor(width / 100), 2)); // 動態調整刻度數量
+            };
+
+            svg
+                .append("g")
+                .attr("class", "grid")
+                .attr("transform", `translate(0, ${data.length * barHeight})`) // 設置網格線的起點
+                .call(GridLine()
+                    .tickSize(-(data.length * barHeight), 0, 0) // 動態設置網格線長度
+                    .tickFormat("")
+                );
+
+
+            // create a tooltip
+            const tooltip = d3.select("body")
+                .append("div")
+                .attr("id", "chart")
+                .attr("class", "tooltip");
+
+            // tooltip events
+            const mouseover = function (d) {
+                tooltip.style("opacity", .8);
+                d3.select(this).style("opacity", .5);
+            };
+            const mousemove = function (event, d) {
+                tooltip
+                    .html((d[1] - d[0]).toFixed(1))
+                    .style("top", event.pageY - 10 + "px")
+                    .style("left", event.pageX + 10 + "px");
+            };
+            const mouseleave = function (d) {
+                tooltip.style("opacity", 0);
+                d3.select(this).style("opacity", 1);
+            };
+
+            // create bars
+            svg.append("g")
+                .selectAll("g")
+                .data(stackedData)
+                .join("g")
+                .attr("fill", d => color(d.key))
+                .selectAll("rect")
+                .data(d => d)
+                .join("rect")
+                .attr("x", d => xScale(d[0]))
+                .attr("y", d => yScale(d.data.country))
+                .attr("width", d => xScale(d[1]) - xScale(d[0]))
+                .attr("height", yScale.bandwidth())
+                .on("mouseover", mouseover)
+                .on("mousemove", mousemove)
+                .on("mouseleave", mouseleave);
+
+            // set X and Y axis
+            svg.append('g')
+                .attr("transform", `translate(0, ${data.length * barHeight})`)
+                .call(d3.axisBottom(xScale).ticks(12).tickSize(0).tickPadding(10).tickFormat(d => d))
+                .call(d => d.select(".domain").remove())
+                .selectAll("text")
+                .style("font-size", "13px");
+            svg.append('g')
+                .call(d3.axisLeft(yScale).tickSize(0).tickPadding(15))
+                .selectAll("text")
+                .style("font-size", "16px");
+
+
+            // set Y axis label
+            svg
+            .append("text")
+            .attr("class", "chart-label")
+            .attr("x", width / 2)
+            .attr("y", height)
+            .attr("text-anchor", "middle")
+            .text("acount of medals")
+
+
+
+            // set title
+
+            // svg.append("text")
+            //     .attr("class", "chart-title")
+            //     .attr("x", -(margin.left) * 0.8 + 515)
+            //     .attr("y", -(margin.top) / 1.5)
+            //     .attr("text-anchor", "start")
+            //     .text("2024 Paris Olympics Medal Count Rankings")
+
+
+            //set legend
+            svg.append("rect")
+                .attr("x", -(margin.left) * 0.8)
+                .attr("y", -(margin.top / 2))
+                .attr("width", 10)
+                .attr("height", 10)
+                .style("fill", "#f28e2c")
+            svg.append("text")
+                .attr("class", "legend")
+                .attr("x", -(margin.left) * 0.8 + 20)
+                .attr("y", -(margin.top / 2.5))
+                .text("gold")
+            svg.append("rect")
+                .attr("x", -(margin.left) * 0.8 + 100)
+                .attr("y", -(margin.top / 2))
+                .attr("width", 10)
+                .attr("height", 10)
+                .style("fill", "#aba7a4")
+            svg.append("text")
+                .attr("class", "legend")
+                .attr("x", -(margin.left) * 0.8 + 120)
+                .attr("y", -(margin.top / 2.5))
+                .text("silver")
+            svg.append("rect")
+                .attr("x", -(margin.left) * 0.8 + 200)
+                .attr("y", -(margin.top / 2))
+                .attr("width", 10)
+                .attr("height", 10)
+                .style("fill", "#291201")
+            svg.append("text")
+                .attr("class", "legend")
+                .attr("x", -(margin.left) * 0.8 + 220)
+                .attr("y", -(margin.top / 2.5))
+                .text("bronze")
+        }
+
+
+        function onclick_button() {
+            let sort_by = document.querySelector("#sort-by").value;
+            let sort_order = document.querySelector("#sort-order").value;
+            let rank_range = document.querySelector("#rank-range").value;
+            let medal_type = document.querySelector("#medal-type").value;
+
+            // 排序和篩選
+            let processed_data = sort_data(new_data, sort_by, sort_order, rank_range);
+
+            // 繪製圖表
+            render_stacked_bar_charts(processed_data, medal_type);
+        }
+
+
+        const sort_button = document.querySelector("#sort-button");
+        sort_button.addEventListener("click", onclick_button);
+
+        onclick_button();
+    })
+</script>
+
+</html>
